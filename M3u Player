@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pemutar Video Sederhana</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #555;
+        }
+
+        .input-section, .video-container, .thumbnail-container, .share-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"] {
+            width: calc(100% - 12px);
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .video-container {
+            display: flex;
+            justify-content: center;
+        }
+
+        .thumbnail-container {
+            text-align: center;
+        }
+
+        .thumbnails {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .thumbnail {
+            width: 100px;
+            height: 75px;
+            border: 1px solid #eee;
+            cursor: pointer;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Pemutar Video Streaming</h1>
+
+        <div class="input-section">
+            <label for="videoUrl">Masukkan URL Video (M3U8 atau MP4):</label>
+            <input type="text" id="videoUrl" placeholder="Contoh: https://example.com/live.m3u8 atau https://example.com/video.mp4">
+            <button onclick="loadVideo()">Muat Video</button>
+        </div>
+
+        <div class="video-container">
+            <video id="videoPlayer" controls width="640" height="360"></video>
+        </div>
+
+        <div class="thumbnail-container">
+            <h2>Thumbnail Video</h2>
+            <div class="thumbnails">
+                </div>
+        </div>
+
+        <div class="share-section">
+            <label for="shareUrl">URL Halaman Ini:</label>
+            <input type="text" id="shareUrl" readonly>
+            <button onclick="copyToClipboard()">Salin URL</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script>
+        let videoPlayer = document.getElementById('videoPlayer');
+        let videoUrlInput = document.getElementById('videoUrl');
+        let shareUrlInput = document.getElementById('shareUrl');
+        let thumbnailsContainer = document.querySelector('.thumbnails');
+
+        function loadVideo() {
+            const url = videoUrlInput.value;
+            if (url) {
+                if (url.endsWith('.m3u8')) {
+                    if (Hls.isSupported()) {
+                        const hls = new Hls();
+                        hls.loadSource(url);
+                        hls.attachMedia(videoPlayer);
+                        hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                            videoPlayer.play();
+                            generateThumbnails(videoPlayer.duration);
+                        });
+                    } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+                        videoPlayer.src = url;
+                        videoPlayer.addEventListener('loadedmetadata', () => {
+                            videoPlayer.play();
+                            generateThumbnails(videoPlayer.duration);
+                        });
+                    }
+                } else if (url.endsWith('.mp4')) {
+                    videoPlayer.src = url;
+                    videoPlayer.addEventListener('loadedmetadata', () => {
+                        videoPlayer.play();
+                        generateThumbnails(videoPlayer.duration);
+                    });
+                } else {
+                    alert('URL tidak valid. Harap masukkan URL M3U8 atau MP4.');
+                }
+                shareUrlInput.value = window.location.href;
+            } else {
+                alert('Harap masukkan URL video terlebih dahulu.');
+            }
+        }
+
+        function generateThumbnails(duration) {
+            thumbnailsContainer.innerHTML = '';
+            const numberOfThumbnails = 12;
+            for (let i = 0; i < numberOfThumbnails; i++) {
+                const time = (duration / numberOfThumbnails) * i;
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = 120;
+                canvas.height = 90;
+                videoPlayer.currentTime = time;
+                videoPlayer.addEventListener('seeked', function() {
+                    context.drawImage(videoPlayer, 0, 0, canvas.width, canvas.height);
+                    const thumbnail = document.createElement('img');
+                    thumbnail.src = canvas.toDataURL();
+                    thumbnail.classList.add('thumbnail');
+                    thumbnail.addEventListener('click', function() {
+                        videoPlayer.currentTime = time;
+                    });
+                    thumbnailsContainer.appendChild(thumbnail);
+                }, { once: true });
+            }
+        }
+
+        function copyToClipboard() {
+            shareUrlInput.select();
+            document.execCommand('copy');
+            alert('URL berhasil disalin!');
+        }
+
+        function loadVideoFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const videoUrlFromParam = urlParams.get('url');
+            if (videoUrlFromParam) {
+                videoUrlInput.value = videoUrlFromParam;
+                loadVideo();
+            }
+            shareUrlInput.value = window.location.href;
+        }
+
+        window.onload = loadVideoFromUrl;
+    </script>
+</body>
+</html>
